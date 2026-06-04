@@ -78,8 +78,10 @@ def worker(worker_id):
             if task_id is STOP:
                 task_queue.task_done()
                 break
-        except:
+        except Exception as e:
+            logging.error(f"Worker {worker_id} | Failed to get task from queue | {e}")
             continue
+        
         task = get_task(task_id)
         if task == None:
             task_queue.task_done()
