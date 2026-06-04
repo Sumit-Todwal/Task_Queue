@@ -1,9 +1,13 @@
 import sqlite3
+import threading
 
 DB_NAME = "tasks.db"
+_local = threading.local()
 
 def get_connection():
-    return sqlite3.connect(DB_NAME,check_same_thread = False)
+    if not hasattr(_local, 'conn'):
+        _local.conn = sqlite3.connect(DB_NAME)
+    return _local.conn
 
 def init_db():
     conn = get_connection()
@@ -15,7 +19,6 @@ def init_db():
                    max_retries INTEGER)""")
     
     conn.commit()
-    conn.close()
 
 def insert_task(task):
     conn = get_connection()
@@ -26,7 +29,6 @@ def insert_task(task):
                                                                                                 task["retries"],
                                                                                                 task["max_retries"]))
     conn.commit()
-    conn.close()
 
 
 def get_recoverable_tasks():
@@ -36,7 +38,6 @@ def get_recoverable_tasks():
     cursor.execute("""Select id from tasks where status IN ('PENDING','RUNNING')""")
     rows = cursor.fetchall()
 
-    conn.close()
     return [row[0] for row in rows]
 
 def get_task(task_id):
@@ -46,7 +47,6 @@ def get_task(task_id):
     cursor.execute("SELECT id, status, retries, max_retries FROM tasks where id = ?",(task_id,))
     row = cursor.fetchone()
 
-    conn.close()
 
     if row is None:
         return None
@@ -69,7 +69,6 @@ def update_task(task):
     ))
 
     conn.commit()
-    conn.close()
 
 
 if __name__ == "__main__" :
