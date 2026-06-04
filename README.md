@@ -141,6 +141,40 @@ python reset_db.py
 To test graceful shutdown, press `Ctrl+C` while `tasks_states_logging.py` is running. Workers finish their current task and exit cleanly. Re-run the script — it will automatically recover and resume incomplete tasks.
 
 ---
+## Sample output
+
+Running `python tasks_states_logging.py` with 50 workers and 2000 tasks produces output like this:
+
+```
+10:42:01 | INFO | RECOVERY | FOUND 0 unfinished tasks
+10:42:01 | INFO | PRODUCER | Task-0 | ENQUEUED
+10:42:01 | INFO | PRODUCER | Task-1 | ENQUEUED
+...
+10:42:01 | INFO | PRODUCER | Task-1999 | ENQUEUED
+10:42:01 | INFO | worker 0 | Task-0 | RUNNING
+10:42:01 | INFO | worker 1 | Task-1 | RUNNING
+10:42:01 | INFO | worker 2 | Task-2 | RUNNING
+10:42:03 | INFO | worker 0 | Task-0 | COMPLETED
+10:42:03 | INFO | worker 1 | Task-1 | RETRYING(1)
+10:42:03 | INFO | worker 2 | Task-2 | COMPLETED
+10:42:05 | INFO | worker 1 | Task-1 | RETRYING(2)
+10:42:09 | INFO | worker 1 | Task-1 | Moved_to_DLQ
+```
+
+**To see crash recovery in action:**
+1. Run `python tasks_states_logging.py` and press `Ctrl+C` mid-way
+2. Run it again — you'll see `RECOVERY | FOUND N unfinished tasks` and it resumes automatically
+
+```
+10:43:15 | INFO | Graceful shutdown requested
+10:43:15 | INFO | Worker-3 | Stopped
+10:43:15 | INFO | Worker-7 | Stopped
+...
+
+# Re-run:
+10:44:02 | INFO | RECOVERY | FOUND 47 unfinished tasks
+10:44:02 | INFO | worker 0 | Task-312 | RUNNING
+```
 
 ## What I'd build next
 
