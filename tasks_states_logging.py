@@ -81,7 +81,7 @@ def worker(worker_id):
         except Exception as e:
             logging.error(f"Worker {worker_id} | Failed to get task from queue | {e}")
             continue
-        
+
         task = get_task(task_id)
         if task == None:
             task_queue.task_done()
@@ -109,6 +109,7 @@ def worker(worker_id):
                 log(worker_id,task["id"],f"RETRYING({task['retries']})")
                 task["status"] = "PENDING"
                 update_task(task)
+                time.sleep(2 ** task["retries"] + random.uniform(0,1))
                 task_queue.put(task_id)
             else :
                 task["status"] = "DEAD"
