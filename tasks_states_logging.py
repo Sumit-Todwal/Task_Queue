@@ -50,12 +50,12 @@ def recover_tasks_on_startup():
 
     return len(recoverable_tasks) > 0
 
-def producer(task_id):
+def producer(task_id, max_retries = 3):
     task = {
         "id": task_id,
         "status": "PENDING",
         "retries" : 0,
-        "max_retries" : 3
+        "max_retries" : max_retries
     }
     insert_task(task)      # DB is the main source of truth now for maintaining persistence.
     try:
@@ -125,15 +125,15 @@ def worker(worker_id):
     logging.info(f"Worker-{worker_id} | Stopped")
 
 
-IS_RECOVERY_MODE = recover_tasks_on_startup()
+if __name__ == "__main__":
+    IS_RECOVERY_MODE = recover_tasks_on_startup()
 
-if not IS_RECOVERY_MODE:
-    for i in range(2000):
-        producer(f"Task-{i}")
+    if not IS_RECOVERY_MODE:
+        for i in range(2000):
+            producer(f"Task-{i}")
 
-for i in range(Num_Worker):
-    Thread(target=worker, args=(i,), daemon=False).start()
+    for i in range(Num_Worker):
+        Thread(target=worker, args=(i,), daemon=False).start()
 
-
-task_queue.join()
-print("All tasks processed")
+    task_queue.join()
+    print("All tasks processed")

@@ -3,3 +3,6 @@
 #   - queue, threading, sqlite3, logging, signal, random, time
 #
 # Python >= 3.8 recommended
+# fastapi
+# uvicorn
+# pytest
