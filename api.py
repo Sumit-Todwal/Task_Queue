@@ -39,8 +39,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Task Queue API",
-    description="Production-grade task queue with persistence, retries, DLQ and crash recovery.",
+    title="Task Queue API — Sumit Todwal",
+    description="""
+Production-grade distributed task queue built from scratch in Python.
+
+**Features:** Persistent state · Concurrent workers · Priority scheduling · 
+Retry with exponential backoff · Dead Letter Queue · Crash recovery · Graceful shutdown
+
+**GitHub:** https://github.com/Sumit-Todwal/Task_Queue  
+**Built by:** Sumit Todwal · https://linkedin.com/in/sumit-todwal-810905350/
+    """,
     version="1.0.0",
     lifespan=lifespan
 )
