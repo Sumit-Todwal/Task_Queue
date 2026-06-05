@@ -2,6 +2,7 @@ import threading
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 import sqlite3
 
@@ -44,6 +45,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/docs")
 
 class TaskRequest(BaseModel):
     task_id: str
