@@ -1,4 +1,4 @@
-from queue import Queue
+from queue import PriorityQueue
 from threading import Thread
 import time
 import random
@@ -23,8 +23,8 @@ logging.basicConfig(
 )
 
 
-task_queue = Queue(maxsize = MAX_QUEUE_SIZE)
-dead_letter_queue = Queue(maxsize = MAX_DLQ_SIZE)
+task_queue = PriorityQueue(maxsize = MAX_QUEUE_SIZE)
+dead_letter_queue = PriorityQueue(maxsize = MAX_DLQ_SIZE)
 
 
 def handle_shutdown(signum, frame):
@@ -33,7 +33,7 @@ def handle_shutdown(signum, frame):
         logging.info("Graceful shutdown requested")
         SHUTDOWN = True
         for _ in range(Num_Worker):
-            task_queue.put(STOP)
+            task_queue.put((0,STOP))
     else:
         logging.info("Forceful shutdown requested")
         sys.exit(1)
@@ -46,25 +46,28 @@ def recover_tasks_on_startup():
     recoverable_tasks = get_recoverable_tasks()
     logging.info(f"RECOVERY | FOUND {len(recoverable_tasks)} unfinished tasks")
     for task_id in recoverable_tasks:
-        task_queue.put(task_id)
+        task_queue.put((1,task_id))
 
     return len(recoverable_tasks) > 0
 
-def producer(task_id, max_retries = 3):
+def producer(task_id, max_retries = 3,priority=1):
     task = {
         "id": task_id,
         "status": "PENDING",
         "retries" : 0,
-        "max_retries" : max_retries
+        "max_retries" : max_retries,
+        "priority" : priority
     }
-    insert_task(task)      # DB is the main source of truth now for maintaining persistence.
-    try:
-        task_queue.put(task_id, block = False)    # Now on task_queue only contain task_id
-        logging.info(f"PRODUCER | {task['id']} | ENQUEUED")
-    except Full:
+
+    if task_queue.full():
         task["status"] = "REJECTED"
-        update_task(task)
-        logging.warning(f"PRODUCER | {task['id']} | QUEUE FULL -> REJECTED")
+        insert_task(task)
+        logging.warning(f"PRODUCER | {task_id} | REJECTED — queue full")
+        return
+    insert_task(task)
+    task_queue.put((priority, task_id))
+    logging.info(f"PRODUCER | {task_id} | ENQUEUED | priority={priority}")
+
 
 
 def log(worker_id, task_id, status):
@@ -74,7 +77,8 @@ def log(worker_id, task_id, status):
 def worker(worker_id):
     while True:
         try :
-            task_id = task_queue.get()
+            item = task_queue.get()
+            _, task_id = item
             if task_id is STOP:
                 task_queue.task_done()
                 break
@@ -110,14 +114,14 @@ def worker(worker_id):
                 task["status"] = "PENDING"
                 update_task(task)
                 time.sleep(2 ** task["retries"] + random.uniform(0,1))
-                task_queue.put(task_id)
+                task_queue.put((task["priority"],task_id))
             else :
                 task["status"] = "DEAD"
                 update_task(task)
                 log(worker_id,task["id"],"Moved_to_DLQ")
                 try:
                     dead_letter_queue.put(task_id, block = False)
-                except:
+                except Exception:
                     logging.critical(f"DLQ FULL | Task {task_id} LOST")
 
         finally:

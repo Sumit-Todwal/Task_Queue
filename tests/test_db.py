@@ -17,8 +17,8 @@ def use_temp_db(tmp_path):
     conn.close()
 
 
-def make_task(task_id="Task-1", status="PENDING", retries=0, max_retries=3):
-    return {"id": task_id, "status": status, "retries": retries, "max_retries": max_retries}
+def make_task(task_id="Task-1", status="PENDING", retries=0, max_retries=3,priority=1):
+    return {"id": task_id, "status": status, "retries": retries, "max_retries": max_retries,"priority" : priority}
 
 
 def test_insert_and_get_task():

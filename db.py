@@ -16,7 +16,13 @@ def init_db():
     cursor.execute("""CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,
                    status TEXT,
                    retries INTEGER,
-                   max_retries INTEGER)""")
+                   max_retries INTEGER,
+                   priority INTEGER DEFAULT 1)""")
+    
+    try:
+        cursor.execute("ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
     
     conn.commit()
 
@@ -24,10 +30,10 @@ def insert_task(task):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""INSERT OR IGNORE into tasks (id, status, retries, max_retries) VALUES(?,?,?,?) """,(task["id"],
+    cursor.execute("""INSERT OR IGNORE into tasks (id, status, retries, max_retries, priority) VALUES(?,?,?,?,?) """,(task["id"],
                                                                                                 task["status"],
                                                                                                 task["retries"],
-                                                                                                task["max_retries"]))
+                                                                                                task["max_retries"],task.get("priority",1)))
     conn.commit()
 
 
@@ -44,7 +50,7 @@ def get_task(task_id):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, status, retries, max_retries FROM tasks where id = ?",(task_id,))
+    cursor.execute("SELECT id, status, retries, max_retries, priority FROM tasks where id = ?",(task_id,))
     row = cursor.fetchone()
 
 
@@ -55,7 +61,8 @@ def get_task(task_id):
         "id" : row[0],
         "status" : row[1],
         "retries" : row[2],
-        "max_retries" : row[3]
+        "max_retries" : row[3],
+        "priority" : row[4]
     }
 
 def update_task(task):

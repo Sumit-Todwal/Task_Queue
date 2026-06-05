@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     yield
     logging.info("Shutting down workers...")
     for _ in range(Num_Worker):
-        task_queue.put(STOP)
+        task_queue.put((0,STOP))
     for t in worker_threads:
         t.join()
     logging.info("All workers stopped")
@@ -48,6 +48,7 @@ app = FastAPI(
 class TaskRequest(BaseModel):
     task_id: str
     max_retries: int = 3
+    priority : int = 1
 
 
 class TaskResponse(BaseModel):
@@ -55,6 +56,7 @@ class TaskResponse(BaseModel):
     status: str
     retries: int
     max_retries: int
+    priority: int = 1
 
 
 @app.post("/tasks", response_model=TaskResponse, status_code=201)
@@ -62,13 +64,14 @@ def enqueue_task(request: TaskRequest):
     existing = get_task(request.task_id)
     if existing:
         raise HTTPException(status_code=409, detail=f"Task '{request.task_id}' already exists")
-    producer(request.task_id, request.max_retries)
+    producer(request.task_id, request.max_retries, request.priority)
     task = get_task(request.task_id)
     return TaskResponse(
         task_id=task["id"],
         status=task["status"],
         retries=task["retries"],
-        max_retries=task["max_retries"]
+        max_retries=task["max_retries"],
+        priority = task["priority"]
     )
 
 
@@ -81,7 +84,8 @@ def get_task_status(task_id: str):
         task_id=task["id"],
         status=task["status"],
         retries=task["retries"],
-        max_retries=task["max_retries"]
+        max_retries=task["max_retries"],
+        priority = task["priority"]
     )
 
 
@@ -121,6 +125,24 @@ def replay_dlq():
         task["status"] = "PENDING"
         task["retries"] = 0
         update_task(task)
-        task_queue.put(task_id)
+        task_queue.put((task["priority"], task_id))
     logging.info(f"DLQ REPLAY | Re-queued {len(dead_tasks)} dead tasks")
     return {"replayed": len(dead_tasks), "message": f"Re-queued {len(dead_tasks)} tasks"}
+
+
+
+class BulkTaskRequest(BaseModel):
+    tasks: list[TaskRequest]
+
+@app.post("/tasks/bulk", status_code=201)
+def enqueue_bulk_tasks(request: BulkTaskRequest):
+    results = []
+    for t in request.tasks:
+        existing = get_task(t.task_id)
+        if existing:
+            results.append({"task_id": t.task_id, "status": "SKIPPED", "reason": "already exists"})
+            continue
+        producer(t.task_id, t.max_retries,t.priority)
+        task = get_task(t.task_id)
+        results.append({"task_id": task["id"], "status": task["status"]})
+    return {"enqueued": len([r for r in results if r["status"] == "PENDING"]), "results": results}
