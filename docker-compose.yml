@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  taskqueue:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./tasks.db:/app/tasks.db
+    restart: unless-stopped
