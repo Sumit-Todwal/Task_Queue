@@ -56,7 +56,7 @@ Retry with exponential backoff · Dead Letter Queue · Crash recovery · Gracefu
 )
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, include_in_schema = False)
 def root():
     return """
 <!DOCTYPE html>
